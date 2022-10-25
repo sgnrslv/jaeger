@@ -17,6 +17,8 @@ package querysvc
 import (
 	"context"
 	"errors"
+	"os"
+	"regexp"
 	"time"
 
 	"go.uber.org/zap"
@@ -77,7 +79,23 @@ func (qs QueryService) GetTrace(ctx context.Context, traceID model.TraceID) (*mo
 
 // GetServices is the queryService implementation of spanstore.Reader.GetServices
 func (qs QueryService) GetServices(ctx context.Context) ([]string, error) {
-	return qs.spanReader.GetServices(ctx)
+	services, err := qs.spanReader.GetServices(ctx)
+	if err != nil {
+		return services, err
+	}
+
+	servicesRegex := os.Getenv("SERVICES_REGEX_PATTERN")
+	if servicesRegex != "" {
+		var newServices []string
+		for _, v := range services {
+			if match, _ := regexp.MatchString(servicesRegex, v); match {
+				newServices = append(newServices, v)
+			}
+		}
+		services = newServices
+	}
+
+	return services, err
 }
 
 // GetOperations is the queryService implementation of spanstore.Reader.GetOperations
